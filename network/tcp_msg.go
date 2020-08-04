@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 )
@@ -63,6 +64,7 @@ func (p *MsgParser) SetByteOrder(littleEndian bool) {
 
 // goroutine safe
 func (p *MsgParser) Read(conn *TCPConn) ([]byte, error) {
+	fmt.Println("read")
 	var b [4]byte
 	bufMsgLen := b[:p.lenMsgLen]
 
@@ -92,7 +94,7 @@ func (p *MsgParser) Read(conn *TCPConn) ([]byte, error) {
 
 	// check len
 	if msgLen > p.maxMsgLen {
-		return nil, errors.New("message too long")
+		return nil, errors.New(fmt.Sprintf("message too long, len:%d", msgLen))
 	} else if msgLen < p.minMsgLen {
 		return nil, errors.New("message too short")
 	}
@@ -116,7 +118,7 @@ func (p *MsgParser) Write(conn *TCPConn, args ...[]byte) error {
 
 	// check len
 	if msgLen > p.maxMsgLen {
-		return errors.New("message too long")
+		return errors.New(fmt.Sprintf("message too long"))
 	} else if msgLen < p.minMsgLen {
 		return errors.New("message too short")
 	}
