@@ -5,7 +5,7 @@ type InnerMessage struct {
 	bytes []byte
 }
 
-const SessionIdInnerProto uint32 = 0xfffffffe
+//const SessionIdInnerProto uint32 = 0xfffffffe
 const SessionIdInnerMessage uint32 = 0xffffffff
 
 
@@ -17,9 +17,9 @@ type MessageBase struct {
 	innerMessage *InnerMessage
 }
 
-func (msg *MessageBase) IsInnerProto() bool {
-	return msg.SessionId == SessionIdInnerProto
-}
+//func (msg *MessageBase) IsInnerProto() bool {
+//	return msg.SessionId == SessionIdInnerProto
+//}
 
 func (msg *MessageBase) IsInnerMessage() bool {
 	return msg.SessionId == SessionIdInnerMessage

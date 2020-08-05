@@ -12,12 +12,16 @@ import (
 )
 
 // -------------------------
-// | id | protobuf message |
+// (| session id )| serial id | message id | protobuf message |
+// isInnerProto 为 true时，有session id(fixed uint32)
+// serial id:var int
+// message id:var int
 // -------------------------
 type Processor struct {
 	littleEndian bool
 	msgInfo      map[uint32]*MsgInfo
 	msgID        map[reflect.Type]uint32
+	isInnerProto bool
 }
 
 type MsgInfo struct {
@@ -34,11 +38,12 @@ type MsgRaw struct {
 	msgRawData []byte
 }
 
-func NewProcessor() *Processor {
+func NewProcessor(isInnerProto bool) *Processor {
 	p := new(Processor)
 	p.littleEndian = false
 	p.msgID = make(map[reflect.Type]uint32)
 	p.msgInfo = make(map[uint32]*MsgInfo)
+	p.isInnerProto = isInnerProto
 	return p
 }
 
@@ -62,8 +67,6 @@ func (p *Processor) Register(msg proto.Message, id uint32) uint32 {
 
 	i := new(MsgInfo)
 	i.msgType = msgType
-	//p.msgInfo = append(p.msgInfo, i)
-	//id := uint16(len(p.msgInfo) - 1)
 	p.msgInfo[id] = i
 	p.msgID[msgType] = id
 	fmt.Println("register:", msgType, id)
@@ -117,7 +120,7 @@ func (p *Processor) Route(msg interface{}, userData interface{}) error {
 
 	// protobuf
 	msg1 := msg.(*MessageBase)
-	fmt.Println("msg id:", msg1.MessageId, msg1)
+	log.Debug("msg id:%v, %v", msg1.MessageId, msg1)
 	msgType := reflect.TypeOf(msg1.Message)
 	id, ok := p.msgID[msgType]
 	if !ok {
@@ -139,15 +142,14 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		return nil, errors.New("message data too short")
 	}
 
-	fmt.Println("data:", data)
+	log.Debug("Unmarshal:%v", data)
 	messageBase := &MessageBase{}
 	idx := 0
-	//if !messageBase.IsInnerProto() {
-	//	messageBase.SessionId = binary.LittleEndian.Uint32(data)
-	//	idx += 4
-	//}
-	messageBase.MessageId = -1
-	log.Debug(fmt.Sprintf("session id: %d", messageBase.SessionId))
+	if !p.isInnerProto {
+		messageBase.SessionId = binary.LittleEndian.Uint32(data)
+		idx += 4
+		log.Debug(fmt.Sprintf("session id: %d", messageBase.SessionId))
+	}
 
 	if messageBase.IsInnerMessage() {
 		strLen, len1 := binary.Uvarint(data[idx:])
@@ -178,7 +180,6 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		messageBase.SerialId = int32(serialId)
 		messageBase.MessageId = int32(msgId)
 		i := p.msgInfo[uint32(msgId)]
-		fmt.Println("i:", i)
 
 		log.Debug(fmt.Sprintf("serial id: %d, meessage id:%d", serialId, msgId))
 
@@ -187,32 +188,10 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		} else {
 			msg := reflect.New(i.msgType.Elem()).Interface()
 			err := proto.UnmarshalMerge(data[idx:], msg.(proto.Message))
-			//msg1 := msg.(proto.Message)
-			msgType := reflect.TypeOf(msg)
-			fmt.Println("type1", msgType)
 			messageBase.Message = msg
 			return messageBase, err
 		}
 	}
-	//// id
-	//var id uint16
-	//if p.littleEndian {
-	//	id = binary.LittleEndian.Uint16(data)
-	//} else {
-	//	id = binary.BigEndian.Uint16(data)
-	//}
-	//if id >= uint16(len(p.msgInfo)) {
-	//	return nil, fmt.Errorf("message id %v not registered", id)
-	//}
-	//
-	//// msg
-	//i := p.msgInfo[id]
-	//if i.msgRawHandler != nil {
-	//	return MsgRaw{id, data[2:]}, nil
-	//} else {
-	//	msg := reflect.New(i.msgType.Elem()).Interface()
-	//	return msg, proto.UnmarshalMerge(data[2:], msg.(proto.Message))
-	//}
 }
 
 // goroutine safe
@@ -228,7 +207,7 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 			return [][]byte{header, msgBase.innerMessage.bytes}, nil
 		} else {
 			header := make([]byte, 64)
-			if !msgBase.IsInnerProto() {
+			if !p.isInnerProto {
 				binary.LittleEndian.PutUint32(header, msgBase.SessionId)
 				idx += 4
 			}
@@ -240,7 +219,7 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 		}
 	}
 
-	return nil, errors.New("Is not a *MessageBase instance")
+	return nil, errors.New("must *MessageBase object")
 }
 
 // goroutine safe
