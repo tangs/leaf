@@ -28,6 +28,7 @@ func (gate *Gate) Run(closeSig chan bool) {
 	var tcpClient *network.TCPClient
 	if gate.TCPAddr != "" {
 		tcpClient = new(network.TCPClient)
+		tcpClient.AutoReconnect = true
 		tcpClient.Addr = gate.TCPAddr
 		tcpClient.ConnNum = gate.MaxConnNum
 		tcpClient.ConnectInterval = gate.ConnectInterval

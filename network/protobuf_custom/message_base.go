@@ -23,6 +23,7 @@ const MessageIdInnerMessage int32 = 0x7fffffff
 type MessageBase struct {
 	MessageId int32
 	SerialId int32
+	GatewayId uint32
 	SessionId uint32
 	Message interface{}
 }
