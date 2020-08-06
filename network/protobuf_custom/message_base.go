@@ -1,12 +1,23 @@
 package protobuf_custom
 
 type InnerMessage struct {
-	cmd string
-	bytes []byte
+	Cmd string
+	Bytes []byte
 }
 
-//const SessionIdInnerProto uint32 = 0xfffffffe
+func (x *InnerMessage) Reset() {
+	x.Cmd = ""
+	x.Bytes = nil
+}
+
+func (x *InnerMessage) String() string {
+	return "InnerMessage"
+}
+
+func (*InnerMessage) ProtoMessage() {}
+
 const SessionIdInnerMessage uint32 = 0xffffffff
+const MessageIdInnerMessage int32 = 0x7fffffff
 
 
 type MessageBase struct {
@@ -14,7 +25,6 @@ type MessageBase struct {
 	SerialId int32
 	SessionId uint32
 	Message interface{}
-	innerMessage *InnerMessage
 }
 
 //func (msg *MessageBase) IsInnerProto() bool {

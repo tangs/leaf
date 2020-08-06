@@ -69,7 +69,7 @@ func (p *Processor) Register(msg proto.Message, id uint32) uint32 {
 	i.msgType = msgType
 	p.msgInfo[id] = i
 	p.msgID[msgType] = id
-	fmt.Println("register:", msgType, id)
+	log.Debug("register:%v, %v", msgType, id)
 	return id
 }
 
@@ -120,8 +120,8 @@ func (p *Processor) Route(msg interface{}, userData interface{}) error {
 
 	// protobuf
 	msg1 := msg.(*MessageBase)
-	log.Debug("msg id:%v, %v", msg1.MessageId, msg1)
 	msgType := reflect.TypeOf(msg1.Message)
+	//log.Debug("msg id:%v, %v, %v", msg1.MessageId, msg1, msgType)
 	id, ok := p.msgID[msgType]
 	if !ok {
 		return fmt.Errorf("message %s not registered1", msgType)
@@ -142,13 +142,15 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		return nil, errors.New("message data too short")
 	}
 
-	log.Debug("Unmarshal:%v", data)
+	//log.Debug("Unmarshal:%v", data)
 	messageBase := &MessageBase{}
 	idx := 0
 	if !p.isInnerProto {
 		messageBase.SessionId = binary.LittleEndian.Uint32(data)
 		idx += 4
-		log.Debug(fmt.Sprintf("session id: %d", messageBase.SessionId))
+		if !messageBase.IsInnerMessage() {
+			log.Debug(fmt.Sprintf("session id: %d", messageBase.SessionId))
+		}
 	}
 
 	if messageBase.IsInnerMessage() {
@@ -158,11 +160,14 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		}
 		idx += len1
 		endIdx := idx + int(strLen)
-		messageBase.innerMessage.cmd = string(data[idx:endIdx])
-		messageBase.innerMessage.bytes = make([]byte, endIdx - idx)
-		messageBase.MessageId = -1
-		copy(messageBase.innerMessage.bytes, data[endIdx:])
-		log.Debug("unmarshal inner message.cmd:%s", messageBase.innerMessage.cmd)
+		//log.Debug("read cmd, idx: %d, len: %d, %v", idx, strLen, data[idx:endIdx])
+		msg := &InnerMessage{}
+		msg.Cmd = string(data[idx:endIdx])
+		msg.Bytes = make([]byte, endIdx - idx)
+		copy(msg.Bytes, data[endIdx:])
+		messageBase.Message = msg
+		messageBase.MessageId = MessageIdInnerMessage
+		//log.Debug("unmarshal inner message.cmd:%s", msg.Cmd)
 		return messageBase, nil
 	} else {
 		serialId, len1 := binary.Varint(data[idx:])
@@ -181,7 +186,11 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		messageBase.MessageId = int32(msgId)
 		i := p.msgInfo[uint32(msgId)]
 
-		log.Debug(fmt.Sprintf("serial id: %d, meessage id:%d", serialId, msgId))
+		log.Debug(fmt.Sprintf("serial id: %d, meessage id:%d",  serialId, msgId))
+
+		if i == nil {
+			return nil, errors.New(fmt.Sprintf("cant't fiad message info by msg id:%v", msgId))
+		}
 
 		if i.msgRawHandler != nil {
 			return MsgRaw{uint16(msgId), data[idx:]}, nil
@@ -199,22 +208,23 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 
 	if msgBase, ok := msg.(*MessageBase); ok {
 		idx := 0
+		header := make([]byte, 256)
+		if !p.isInnerProto {
+			binary.LittleEndian.PutUint32(header, msgBase.SessionId)
+			idx += 4
+		}
 		if msgBase.IsInnerMessage() {
-			header := make([]byte, 256)
-			idx += binary.PutUvarint(header[idx:], uint64(len(msgBase.innerMessage.cmd)))
-			idx += copy(header[idx:], msgBase.innerMessage.cmd)
+			msg := msgBase.Message.(*InnerMessage)
+			idx += binary.PutUvarint(header[idx:], uint64(len(msg.Cmd)))
+			idx += copy(header[idx:], msg.Cmd)
 
-			return [][]byte{header, msgBase.innerMessage.bytes}, nil
+			return [][]byte{header[:idx], msg.Bytes}, nil
 		} else {
-			header := make([]byte, 64)
-			if !p.isInnerProto {
-				binary.LittleEndian.PutUint32(header, msgBase.SessionId)
-				idx += 4
-			}
 			idx += binary.PutVarint(header[idx:], int64(msgBase.SerialId))
 			idx += binary.PutVarint(header[idx:], int64(msgBase.MessageId))
 
 			data, err := proto.Marshal(msgBase.Message.(proto.Message))
+			//log.Debug("Marshal:%v, %v", header[:idx], data)
 			return [][]byte{header[:idx], data}, err
 		}
 	}

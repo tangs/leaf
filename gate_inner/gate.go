@@ -36,7 +36,6 @@ func (gate *Gate) Run(closeSig chan bool) {
 		tcpClient.MaxMsgLen = gate.MaxMsgLen
 		tcpClient.LittleEndian = gate.LittleEndian
 		tcpClient.NewAgent = func(conn *network.TCPConn) network.Agent {
-			log.Debug("dddd")
 			a := &agent{conn: conn, gate: gate}
 			if gate.AgentChanRPC != nil {
 				gate.AgentChanRPC.Go("NewAgent", a)
