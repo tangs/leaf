@@ -220,7 +220,7 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 			idx += binary.PutUvarint(header[idx:], uint64(len(msg.Cmd)))
 			idx += copy(header[idx:], msg.Cmd)
 
-			log.Debug("Marshal inner msg:%v, %v, %v", msg.Cmd, header[:idx], msg.Bytes)
+			//log.Debug("Marshal inner msg:%v, %v, %v", msg.Cmd, header[:idx], msg.Bytes)
 			return [][]byte{header[:idx], msg.Bytes}, nil
 		} else {
 			idx += binary.PutVarint(header[idx:], int64(msgBase.SerialId))
