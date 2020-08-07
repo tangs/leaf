@@ -205,7 +205,7 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 
 // goroutine safe
 func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
-
+	log.Debug("Marshal data:%v", msg)
 	if msgBase, ok := msg.(*MessageBase); ok {
 		idx := 0
 		header := make([]byte, 256)
