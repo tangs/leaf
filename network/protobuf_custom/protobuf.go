@@ -206,9 +206,9 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 // goroutine safe
 func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 	if msgBase, ok := msg.(*MessageBase); ok {
-		if !msgBase.IsInnerMessage() {
-			log.Debug("Marshal data:%v", msg)
-		}
+		//if !msgBase.IsInnerMessage() {
+		//	log.Debug("Marshal data:%v", msg)
+		//}
 		idx := 0
 		header := make([]byte, 256)
 		if !p.isInnerProto {
