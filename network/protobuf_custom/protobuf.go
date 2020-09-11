@@ -143,17 +143,17 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 	}
 
 	//log.Debug("Unmarshal:%v", data)
-	messageBase := &MessageBase{}
+	msgBase := &MessageBase{}
 	idx := 0
 	if !p.isInnerProto {
-		messageBase.SessionId = binary.LittleEndian.Uint32(data)
+		msgBase.SessionId = binary.LittleEndian.Uint32(data)
 		idx += 4
-		if !messageBase.IsInnerMessage() {
-			log.Debug(fmt.Sprintf("session id: %d", messageBase.SessionId))
-		}
+		//if !messageBase.IsInnerMessage() {
+		//	log.Debug(fmt.Sprintf("session id: %d", messageBase.SessionId))
+		//}
 	}
 
-	if messageBase.IsInnerMessage() {
+	if msgBase.IsInnerMessage() {
 		strLen, len1 := binary.Uvarint(data[idx:])
 		if len1 <= 0 {
 			return nil, errors.New("read string len fail")
@@ -165,10 +165,10 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		msg.Cmd = string(data[idx:endIdx])
 		msg.Bytes = make([]byte, endIdx - idx)
 		copy(msg.Bytes, data[endIdx:])
-		messageBase.Message = msg
-		messageBase.MessageId = MessageIdInnerMessage
+		msgBase.Message = msg
+		msgBase.MessageId = MessageIdInnerMessage
 		//log.Debug("unmarshal inner message.cmd:%s", msg.Cmd)
-		return messageBase, nil
+		return msgBase, nil
 	} else {
 		serialId, len1 := binary.Varint(data[idx:])
 		if len1 <= 0 {
@@ -182,11 +182,9 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		}
 		idx += len1
 
-		messageBase.SerialId = int32(serialId)
-		messageBase.MessageId = int32(msgId)
+		msgBase.SerialId = int32(serialId)
+		msgBase.MessageId = int32(msgId)
 		i := p.msgInfo[uint32(msgId)]
-
-		log.Debug(fmt.Sprintf("serial id: %d, meessage id:%d",  serialId, msgId))
 
 		if i == nil {
 			return nil, errors.New(fmt.Sprintf("cant't fiad message info by msg id:%v", msgId))
@@ -197,8 +195,13 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		} else {
 			msg := reflect.New(i.msgType.Elem()).Interface()
 			err := proto.UnmarshalMerge(data[idx:], msg.(proto.Message))
-			messageBase.Message = msg
-			return messageBase, err
+			msgBase.Message = msg
+			// TODO
+			if msgId != 1000001 && msgId != 800005 {
+				log.Debug("Unmarshal serial id: %d, msg id:%d, %d, %d, %v, %v", serialId,
+					msgBase.GatewayId, msgBase.SessionId, msgId, reflect.TypeOf(msg), msg)
+			}
+			return msgBase, err
 		}
 	}
 }
@@ -206,9 +209,6 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 // goroutine safe
 func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 	if msgBase, ok := msg.(*MessageBase); ok {
-		//if !msgBase.IsInnerMessage() {
-		//	log.Debug("Marshal data:%v", msg)
-		//}
 		idx := 0
 		header := make([]byte, 256)
 		if !p.isInnerProto {
@@ -223,6 +223,11 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 			//log.Debug("Marshal inner msg:%v, %v, %v", msg.Cmd, header[:idx], msg.Bytes)
 			return [][]byte{header[:idx], msg.Bytes}, nil
 		} else {
+			if msgBase.MessageId != 1000002 && msgBase.MessageId != 800105 {
+				log.Debug("Marshal serial id: %d, %d, %d, msg id:%d, %v, %v",
+					msgBase.SerialId, msgBase.GatewayId, msgBase.SessionId, msgBase.MessageId,
+					reflect.TypeOf(msgBase.Message), msgBase.Message)
+			}
 			idx += binary.PutVarint(header[idx:], int64(msgBase.SerialId))
 			idx += binary.PutVarint(header[idx:], int64(msgBase.MessageId))
 
