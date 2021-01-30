@@ -21,6 +21,7 @@ type Processor struct {
 	littleEndian bool
 	msgInfo      map[uint32]*MsgInfo
 	msgID        map[reflect.Type]uint32
+	// 是否内部服务器协议(与玩家通讯为外部通讯，内部服务器之间的通讯为内部通讯)
 	isInnerProto bool
 }
 
