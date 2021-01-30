@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"time"
+	"runtime"
 )
 
 type ZLogger struct {
@@ -55,7 +56,7 @@ func ZLogInit(strLevel string, pathname string, _ int)  {
 	}
 	zerolog.SetGlobalLevel(level)
 
-	ZLog = zerolog.New(file).With().Caller().Timestamp().Logger().Output(zerolog.ConsoleWriter{
+	ZLog = zerolog.New(file).With().Timestamp().Logger().Output(zerolog.ConsoleWriter{
 		Out:file,
 		NoColor: true,
 		TimeFormat: "2006/01/02 15:04:05",
@@ -77,6 +78,13 @@ func ZLogInit(strLevel string, pathname string, _ int)  {
 
 func ZeroLog(event *zerolog.Event, msg string) {
 	//event.Msg(msg)
+	_, file, line, ok := runtime.Caller(1)
+	if !ok {
+		Fatal("get caller fail.")
+		return
+	}
+	// add caller.
+	event = event.Str("caller", zerolog.CallerMarshalFunc(file, line))
 	msgChan <- Message{
 		event: event,
 		msg: msg,

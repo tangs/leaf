@@ -197,10 +197,18 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 			msg := reflect.New(i.msgType.Elem()).Interface()
 			err := proto.UnmarshalMerge(data[idx:], msg.(proto.Message))
 			msgBase.Message = msg
-			// TODO
+			// skip ping msg
 			if msgId != 1000001 && msgId != 800005 {
-				log.Debug("Unmarshal serial id: %d, msg id:%d, %d, %d, %v, %v", serialId,
-					msgBase.GatewayId, msgBase.SessionId, msgId, reflect.TypeOf(msg), msg)
+				//log.Debug("Unmarshal serial id: %d, msg id:%d, %d, %d, %v, %v", serialId,
+				//	msgBase.GatewayId, msgBase.SessionId, msgId, reflect.TypeOf(msg), msg)
+				log.ZeroLog(log.ZLog.Info().
+					Int64("msgId", msgId).
+					Int64("SerialId", serialId).
+					Uint32("GatewayId", msgBase.GatewayId).
+					Uint32("SessionId", msgBase.SessionId).
+					Str("type", reflect.TypeOf(msg).String()).
+					Interface("data", msg),
+					"Unmarshal serial.")
 			}
 			return msgBase, err
 		}
@@ -225,9 +233,17 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 			return [][]byte{header[:idx], msg.Bytes}, nil
 		} else {
 			if msgBase.MessageId != 1000002 && msgBase.MessageId != 800105 {
-				log.Debug("Marshal serial id: %d, %d, %d, msg id:%d, %v, %v",
-					msgBase.SerialId, msgBase.GatewayId, msgBase.SessionId, msgBase.MessageId,
-					reflect.TypeOf(msgBase.Message), msgBase.Message)
+				//log.Debug("Marshal serial id: %d, %d, %d, msg id:%d, %v, %v",
+				//	msgBase.SerialId, msgBase.GatewayId, msgBase.SessionId, msgBase.MessageId,
+				//	reflect.TypeOf(msgBase.Message), msgBase.Message)
+				log.ZeroLog(log.ZLog.Info().
+					Int32("msgId", msgBase.MessageId).
+					Int32("SerialId", msgBase.SerialId).
+					Uint32("GatewayId", msgBase.GatewayId).
+					Uint32("SessionId", msgBase.SessionId).
+					Str("type", reflect.TypeOf(msgBase.Message).String()).
+					Interface("data", msgBase.Message),
+					"Marshal serial.")
 			}
 			idx += binary.PutVarint(header[idx:], int64(msgBase.SerialId))
 			idx += binary.PutVarint(header[idx:], int64(msgBase.MessageId))
