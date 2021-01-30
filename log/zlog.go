@@ -9,11 +9,8 @@ import (
 	"time"
 )
 
-//var ZLog zerolog.Logger
-
 type ZLogger struct {
 	level      zerolog.Level
-	//baseLogger zerolog.Logger
 	baseFile   *os.File
 }
 
@@ -25,10 +22,10 @@ type Message struct {
 var ZLog zerolog.Logger
 var gZLogger = ZLogger{}
 
-var msgChan = make(chan Message, 10)
+var msgChan = make(chan Message, 100)
 var QuitChan = make(chan int)
 
-func ZLog_Init(strLevel string, pathname string, flag int)  {
+func ZLogInit(strLevel string, pathname string, _ int)  {
 	now := time.Now()
 	filename := fmt.Sprintf("%d%02d%02d_%02d_%02d_%02d_z.log",
 		now.Year(),
@@ -78,7 +75,7 @@ func ZLog_Init(strLevel string, pathname string, flag int)  {
 	}()
 }
 
-func ZMsg(event *zerolog.Event, msg string) {
+func ZeroLog(event *zerolog.Event, msg string) {
 	//event.Msg(msg)
 	msgChan <- Message{
 		event: event,
