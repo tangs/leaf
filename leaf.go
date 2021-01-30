@@ -14,6 +14,7 @@ func Run(mods ...module.Module) {
 	// logger
 	if conf.LogLevel != "" {
 		logger, err := log.New(conf.LogLevel, conf.LogPath, conf.LogFlag)
+		log.ZLog_Init(conf.LogLevel, conf.LogPath, conf.LogFlag)
 		if err != nil {
 			panic(err)
 		}
@@ -39,6 +40,7 @@ func Run(mods ...module.Module) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
 	sig := <-c
+	log.QuitChan <- 0
 	log.Release("Leaf closing down (signal: %v)", sig)
 	console.Destroy()
 	cluster.Destroy()
