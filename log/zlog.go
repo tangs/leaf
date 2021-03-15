@@ -6,8 +6,9 @@ import (
 	"log"
 	"os"
 	"path"
-	"time"
 	"runtime"
+	"strings"
+	"time"
 )
 
 type ZLogger struct {
@@ -82,6 +83,9 @@ func ZeroLog(event *zerolog.Event, msg string) {
 	if !ok {
 		Fatal("get caller fail.")
 		return
+	}
+	if idx := strings.LastIndex(file, "/"); idx != -1 {
+		file = file[idx+1:]
 	}
 	// add caller.
 	event = event.Str("caller", zerolog.CallerMarshalFunc(file, line))
