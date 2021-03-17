@@ -194,8 +194,8 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 		if i.msgRawHandler != nil {
 			return MsgRaw{uint16(msgId), data[idx:]}, nil
 		} else {
-			msg := reflect.New(i.msgType.Elem()).Interface()
-			err := proto.UnmarshalMerge(data[idx:], msg.(proto.Message))
+			msg := reflect.New(i.msgType.Elem()).Interface().(proto.Message)
+			err := proto.UnmarshalMerge(data[idx:], msg)
 			msgBase.Message = msg
 			// skip ping msg
 			if msgId != 1000001 && msgId != 800005 {
@@ -203,12 +203,13 @@ func (p *Processor) Unmarshal(data []byte) (interface{}, error) {
 				//	msgBase.GatewayId, msgBase.SessionId, msgId, reflect.TypeOf(msg), msg)
 				log.ZeroLog(log.ZLog.Info().
 					Int64("msgId", msgId).
-					Int64("SerialId", serialId).
-					Uint32("GatewayId", msgBase.GatewayId).
-					Uint32("SessionId", msgBase.SessionId).
+					Int64("serial", serialId).
+					Uint32("gateway", msgBase.GatewayId).
+					Uint32("session", msgBase.SessionId).
 					Str("type", reflect.TypeOf(msg).String()).
+					//Str("type", i.msgType.Elem().String()).
 					Interface("data", msg),
-					"Unmarshal serial.")
+					"decode")
 			}
 			return msgBase, err
 		}
@@ -225,12 +226,12 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 			idx += 4
 		}
 		if msgBase.IsInnerMessage() {
-			msg := msgBase.Message.(*InnerMessage)
-			idx += binary.PutUvarint(header[idx:], uint64(len(msg.Cmd)))
-			idx += copy(header[idx:], msg.Cmd)
+			msg1 := msgBase.Message.(*InnerMessage)
+			idx += binary.PutUvarint(header[idx:], uint64(len(msg1.Cmd)))
+			idx += copy(header[idx:], msg1.Cmd)
 
 			//log.Debug("Marshal inner msg:%v, %v, %v", msg.Cmd, header[:idx], msg.Bytes)
-			return [][]byte{header[:idx], msg.Bytes}, nil
+			return [][]byte{header[:idx], msg1.Bytes}, nil
 		} else {
 			if msgBase.MessageId != 1000002 && msgBase.MessageId != 800105 {
 				//log.Debug("Marshal serial id: %d, %d, %d, msg id:%d, %v, %v",
@@ -238,12 +239,12 @@ func (p *Processor) Marshal(msg interface{}) ([][]byte, error) {
 				//	reflect.TypeOf(msgBase.Message), msgBase.Message)
 				log.ZeroLog(log.ZLog.Info().
 					Int32("msgId", msgBase.MessageId).
-					Int32("SerialId", msgBase.SerialId).
-					Uint32("GatewayId", msgBase.GatewayId).
-					Uint32("SessionId", msgBase.SessionId).
+					Int32("serial", msgBase.SerialId).
+					Uint32("gateway", msgBase.GatewayId).
+					Uint32("session", msgBase.SessionId).
 					Str("type", reflect.TypeOf(msgBase.Message).String()).
 					Interface("data", msgBase.Message),
-					"Marshal serial.")
+					"encode")
 			}
 			idx += binary.PutVarint(header[idx:], int64(msgBase.SerialId))
 			idx += binary.PutVarint(header[idx:], int64(msgBase.MessageId))
