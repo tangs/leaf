@@ -28,20 +28,7 @@ var msgChan = make(chan Message, 100)
 var QuitChan = make(chan int)
 
 func ZLogInit(strLevel string, pathname string, _ int)  {
-	now := time.Now()
-	filename := fmt.Sprintf("%d%02d%02d_%02d_%02d_%02d_z.log",
-		now.Year(),
-		now.Month(),
-		now.Day(),
-		now.Hour(),
-		now.Minute(),
-		now.Second())
-	file, err := os.Create(path.Join(pathname, filename))
-	if err != nil {
-		// Can we log an error before we have our logger? :)
-		log.Fatal("create log file fail.")
-	}
-
+	file := getFilenameNow(pathname)
 	var level zerolog.Level
 	switch strLevel {
 	case "debug":
@@ -58,23 +45,49 @@ func ZLogInit(strLevel string, pathname string, _ int)  {
 	zerolog.SetGlobalLevel(level)
 
 	ZLog = zerolog.New(file).With().Timestamp().Logger().Output(zerolog.ConsoleWriter{
-		Out:file,
-		NoColor: true,
+		Out:        file,
+		NoColor:    true,
 		TimeFormat: "2006/01/02 15:04:05",
 	})
 	gZLogger.level = level
 	gZLogger.baseFile = file
 
 	go func() {
+		// 定时切换日志文件
+		tick := time.Tick(12 * time.Hour)
 		for {
 			select {
-			case msg := <- msgChan:
+			case <-tick:
+				file := getFilenameNow(pathname)
+				ZLog = zerolog.New(file).With().Timestamp().Logger().Output(zerolog.ConsoleWriter{
+					Out:        file,
+					NoColor:    true,
+					TimeFormat: "2006/01/02 15:04:05",
+				})
+			case msg := <-msgChan:
 				msg.event.Msg(msg.msg)
-			case <- QuitChan:
+			case <-QuitChan:
 				return
 			}
 		}
 	}()
+}
+
+func getFilenameNow(pathname string) *os.File {
+	now := time.Now()
+	filename := fmt.Sprintf("%d%02d%02d_%02d_%02d_%02d_z.log",
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		now.Hour(),
+		now.Minute(),
+		now.Second())
+	file, err := os.Create(path.Join(pathname, filename))
+	if err != nil {
+		// Can we log an error before we have our logger? :)
+		log.Fatal("create log file fail.")
+	}
+	return file
 }
 
 func ZeroLog(event *zerolog.Event, msg string) {
