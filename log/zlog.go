@@ -94,7 +94,7 @@ func ZeroLog(event *zerolog.Event, msg string) {
 	//event.Msg(msg)
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {
-		Fatal("get caller fail.")
+		Error("get caller fail:%v", msg)
 		return
 	}
 	if idx := strings.LastIndex(file, "/"); idx != -1 {
